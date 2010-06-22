@@ -1,0 +1,2 @@
+-- Get tasks by it's correct project
+SELECT t.id AS tid, t.title AS tname, t.completed, t.id, projects.id AS pid, projects.title AS pname FROM tasks AS t INNER JOIN projects ON t.project_id = projects.id
