@@ -8,8 +8,12 @@
 </head>
 <body>
 	<h1>Todo App</h1>
+	<form id="addProject">
+		<input type="text" placeholder="Project name" name="project-name" data-add-type="project" />
+		<input type="submit" value="Add project" />
+	</form>
 	<form id="addTask">
-		<input type="text" placeholder="Task name" name="task-name" />
+		<input type="text" placeholder="Task name" name="task-name" data-add-type="task" />
 		<input type="submit" value="Add task" />
 	</form>
 	<ul id="tasks">
