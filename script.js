@@ -3,20 +3,28 @@ TDAPP = {
 		TDAPP._addTaskForm = $('#addTask'),
 		TDAPP._addProjectForm = $('#addProject'),
 		TDAPP._tasksList = $('#tasks'),
-		TDAPP._db = TDAPP.db.open();
+		TDAPP._db = TDAPP.db.open(),
+		TDAPP._addTaskToProject;
 		
-		TDAPP._addTaskForm.add(TDAPP._addProjectForm).bind('submit', function (e) {
+		TDAPP._addTaskForm.hide().bind('submit', function (e) {
 			e.preventDefault();
 			
 			var input = $('input:text', this),
-				title = input.val();			
+				title = input.val(),
+				project_id = TDAPP._addTaskToProject;			
 			
 			input.val('');
 			
-			TDAPP[ input.attr('data-add-type') ].add(title);
+			TDAPP.task.add(title, project_id);
 		});
-		TDAPP._tasksList.delegate('input', 'change', function () {
+		TDAPP._tasksList.delegate('input[type="checkbox"]', 'change', function () {
 			TDAPP.task.complete( this.value );
+		});
+		TDAPP._tasksList.delegate('input[type="button"]', 'click', function () {
+			var button = $(this);
+			
+			TDAPP._addTaskToProject = button.parent().attr('data-project-id');
+			TDAPP._addTaskForm.show();
 		});
 		
 		TDAPP.db.setup();
@@ -63,11 +71,14 @@ TDAPP = {
 		}
 	},
 	task: {
-		add: function ( title ) {
+		add: function ( title, project_id ) {
 			TDAPP._db.transaction( function (tx) {
-				tx.executeSql('INSERT INTO tasks (title, project_id) VALUES (?, ?);', [title, 2], function (tx, result) {
+				tx.executeSql('INSERT INTO tasks (title, project_id) VALUES (?, ?);', [title, project_id], function (tx, result) {
 					tx.executeSql('SELECT max(id) AS amount FROM tasks;', [], function (tx, result) {						
-						TDAPP._tasksList.append('<li id="task-' + result.rows.item(0).amount + '"><input type="checkbox" name="task[]" value="' + result.rows.item(0).amount + '" /><span class="title">' + title + '</span></li>');
+						TDAPP._tasksList.find('li[data-project-id=' + project_id + ']').find('ul').append('<li id="task-' + result.rows.item(0).amount + '"><input type="checkbox" name="task[]" value="' + result.rows.item(0).amount + '" /><span class="title">' + title + '</span></li>');
+						
+						TDAPP._addTaskForm.hide();
+						TDAPP._addTaskToProject = undefined;
 					});
 					
 				});
@@ -89,10 +100,10 @@ TDAPP = {
 	},
 	refreshList: function () {
 		TDAPP._db.transaction( function (tx) {
-			var res = tx.executeSql('SELECT t.id AS tid, t.title AS tname, t.completed, t.id, projects.id AS pid, projects.title AS pname FROM tasks AS t INNER JOIN projects ON t.project_id = projects.id AND t.completed = 0 GROUP BY t.id, t.title', [], function (tx, result) {
+			tx.executeSql('SELECT t.id AS tid, t.title AS tname, t.completed, t.id, projects.id AS pid, projects.title AS pname FROM tasks AS t INNER JOIN projects ON t.project_id = projects.id AND t.completed = 0 ORDER BY pid', [], function (tx, result) {
 				var resObj = {},
 					x = 0, y = 0, lastProjectId,
-					listHtml = '';
+					html = '', addTaskButton = '<input type="button" value="Add task" />';
 					
 				for (var i = 0; i < result.rows.length; i++) {
 					var row = result.rows.item(i);
@@ -117,22 +128,19 @@ TDAPP = {
 					lastProjectId = row.pid;
 				}
 				
-				listHtml = '<ul>';
 				for (i in resObj) {
 					var project = resObj[i];
 					
-					listHtml += '<li>' + project.title + '<ul class="tasks">';
-					
+					html += '<li data-project-id="' + project.id + '">' + project.title + addTaskButton + '<ul class="tasks">';
 					for (y in project.tasks) {
 						var task = project.tasks[y];
 						
-						listHtml += '<li id="task-' + task.id + '"><input type="checkbox" name="task[]" value="' + task.id + '" /><span class="title">' + task.title + '</span>';
+						html += '<li id="task-' + task.id + '"><input type="checkbox" name="task[]" value="' + task.id + '" /><span class="title">' + task.title + '</span>';
 					}
-					listHtml += '</ul></li>';
+					html += '</ul></li>';
 				}
-				listHtml += '</ul>';
 				
-				TDAPP._tasksList.html( listHtml );
+				TDAPP._tasksList.html( html );
 			});
 		});
 	}
