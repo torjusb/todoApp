@@ -33,6 +33,9 @@
 					maxSize = 65536;
 					
 				return openDatabase(shortName, version, displayName, maxSize);
+			},
+			error: function (err) {
+				console.log(err);
 			}
 		},
 		project: {
@@ -48,17 +51,19 @@
 			}
 		},
 		task: {
-			add: function ( title, project_id ) {
+			add: function ( title, project_id, properties ) {
+				var label = properties.label || 'none';
 				TDAPP._db.transaction( function (tx) {
-					tx.executeSql('INSERT INTO tasks (title, project_id) VALUES (?, ?);', [title, project_id], function (tx, result) {
+					console.log(label);
+					tx.executeSql('INSERT INTO tasks (title, project_id, label) VALUES (?, ?, ?);', [title, project_id, label], function (tx, result) {
 						tx.executeSql('SELECT max(id) AS amount FROM tasks;', [], function (tx, result) {						
-							TDAPP._tasksList.find('li[data-project-id=' + project_id + ']').find('ul').append('<li id="task-' + result.rows.item(0).amount + '"><input type="checkbox" name="task[]" value="' + result.rows.item(0).amount + '" /><span class="title">' + title + '</span></li>');
+							$('#tasks').find('li[data-project-id=' + project_id + ']').find('ul').append('<li id="task-' + result.rows.item(0).amount + '"><input type="checkbox" name="task[]" value="' + result.rows.item(0).amount + '" /><span class="title">' + title + '</span></li>');
 							
-							TDAPP._addTaskForm.hide();
+							$('#addTasks').hide();
 							TDAPP._addTaskToProject = undefined;
 						});
 						
-					});
+					}, TDAPP.db.error);
 				});
 			},
 			'delete': function ( id ) {
@@ -79,7 +84,7 @@
 			var resObj = {};
 			
 			TDAPP._db.transaction( function (tx) {
-				tx.executeSql('SELECT t.id AS tid, t.title AS tname, t.completed, t.id, projects.id AS pid, projects.title AS pname FROM tasks AS t INNER JOIN projects ON t.project_id = projects.id AND t.completed = 0 ORDER BY pid', [], function (tx, result) {
+				tx.executeSql('SELECT t.id AS tid, t.title AS tname, t.completed, t.id, t.label, projects.id AS pid, projects.title AS pname FROM tasks AS t INNER JOIN projects ON t.project_id = projects.id AND t.completed = 0 ORDER BY pid', [], function (tx, result) {
 					var x = 0, y = 0, lastProjectId;
 						
 					for (var i = 0; i < result.rows.length; i++) {
@@ -98,7 +103,8 @@
 						resObj[x]['tasks'][y] = {
 							id: row.tid,
 							title: row.tname,
-							completed: row.completed
+							completed: row.completed,
+							label: row.label
 						};
 						
 						y++;
